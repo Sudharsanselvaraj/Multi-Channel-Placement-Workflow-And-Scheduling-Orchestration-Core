@@ -13,29 +13,21 @@ services:
       - key: USER_NAME_VARIANTS
         value: Sudharsan,SUDHARSAN,sudharsan,Sudharsan S
       - key: REGISTER_NUMBER
-        value: RA2211028010001
+        value: RA2311003050045
       - key: COLLEGE_EMAIL
-        value: sudharsan@srmist.edu.in
+        value: ss0856@srmist.edu.in
       - key: GMAIL_ADDRESS
-        sync: false
+        value: ss0856@srmist.edu.in
       - key: GMAIL_APP_PASSWORD
-        sync: false
+        value: your_app_password
       - key: IMAP_SERVER
         value: imap.gmail.com
       - key: IMAP_PORT
         value: "993"
       - key: TELEGRAM_BOT_TOKEN
-        sync: false
+        value: 8777010648:AAGilk2eOEcJccH9Pg_AG0KIaVWHC0KXZeg
       - key: TELEGRAM_CHAT_ID
-        sync: false
-      - key: PUSHOVER_USER_KEY
-        sync: false
-      - key: PUSHOVER_API_TOKEN
-        sync: false
-      - key: FAST2SMS_API_KEY
-        sync: false
-      - key: USER_PHONE
-        sync: false
+        value: "5873576464"
       - key: POLL_INTERVAL_SECONDS
         value: "60"
       - key: TIMEZONE
