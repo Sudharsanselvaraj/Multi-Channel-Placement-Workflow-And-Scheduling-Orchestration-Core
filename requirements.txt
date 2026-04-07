@@ -1,7 +1,7 @@
-fastapi==0.88.0
-uvicorn==0.24.0
-pydantic==1.10.13
-pydantic-settings==2.0.3
+fastapi==0.110.0
+uvicorn==0.27.1
+pydantic==2.6.4
+pydantic-settings==2.2.1
 requests==2.32.3
 pytz==2024.2
 python-dateutil==2.9.0
