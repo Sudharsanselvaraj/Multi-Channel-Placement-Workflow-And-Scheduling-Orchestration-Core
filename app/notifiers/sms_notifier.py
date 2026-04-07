@@ -17,23 +17,35 @@ class SMSNotifier:
 
         phone = settings.user_phone.replace("+91", "").replace("+", "").strip()
 
+        # Try new Fast2SMS API format
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                FAST2SMS_API,
-                headers={"authorization": settings.fast2sms_api_key},
-                params={
-                    "variables_values": message[:160],
-                    "route": "q",
-                    "numbers": phone,
-                },
-                timeout=10,
-            )
-            if response.status_code == 200 and response.json().get("return"):
-                logger.info("✅ SMS sent via Fast2SMS")
-                return True
-            else:
-                logger.error(f"SMS error: {response.status_code} — {response.text}")
-                return False
+            try:
+                response = await client.post(
+                    "https://www.fast2sms.com/dev/bulkV2",
+                    headers={
+                        "authorization": settings.fast2sms_api_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "message": message[:160],
+                        "language": "english",
+                        "route": "q",
+                        "numbers": phone,
+                    },
+                    timeout=15,
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("return"):
+                        logger.info("✅ SMS sent via Fast2SMS")
+                        return True
+                    else:
+                        logger.error(f"SMS error: {response.status_code} — {data}")
+                else:
+                    logger.error(f"SMS error: {response.status_code} — {response.text}")
+            except Exception as e:
+                logger.error(f"SMS exception: {e}")
+            return False
 
     async def send_shortlist_alert(self, company: str, event_type: str, time_str: str):
         msg = f"SHORTLISTED! {company} - {event_type} at {time_str}. Check Telegram immediately."
