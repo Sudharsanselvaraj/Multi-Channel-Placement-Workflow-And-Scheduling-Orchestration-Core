@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: haveloc-guardian
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: USER_NAME
+        value: Sudharsan S
+      - key: USER_NAME_VARIANTS
+        value: Sudharsan,SUDHARSAN,sudharsan,Sudharsan S
+      - key: REGISTER_NUMBER
+        value: RA2211028010001
+      - key: COLLEGE_EMAIL
+        value: sudharsan@srmist.edu.in
+      - key: GMAIL_ADDRESS
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: IMAP_SERVER
+        value: imap.gmail.com
+      - key: IMAP_PORT
+        value: "993"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: PUSHOVER_USER_KEY
+        sync: false
+      - key: PUSHOVER_API_TOKEN
+        sync: false
+      - key: FAST2SMS_API_KEY
+        sync: false
+      - key: USER_PHONE
+        sync: false
+      - key: POLL_INTERVAL_SECONDS
+        value: "60"
+      - key: TIMEZONE
+        value: Asia/Kolkata
+      - key: DAILY_SUMMARY_TIME
+        value: "20:00"
+      - key: HAVELOC_SENDERS
+        value: alerts@haveloc.com,srm@haveloc.com
+      - key: LOG_LEVEL
+        value: INFO
+      - key: ENVIRONMENT
+        value: production
