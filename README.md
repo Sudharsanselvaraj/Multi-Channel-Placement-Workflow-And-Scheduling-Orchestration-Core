@@ -1,6 +1,6 @@
 <div align="center">
 
-BANNER = r"""
+"""
  ██╗  ██╗ █████╗ ██╗   ██╗███████╗██╗      ██████╗  ██████╗
  ██║  ██║██╔══██╗██║   ██║██╔════╝██║     ██╔═══██╗██╔════╝
  ███████║███████║██║   ██║█████╗  ██║     ██║   ██║██║
@@ -9,6 +9,7 @@ BANNER = r"""
  ╚═╝  ╚═╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚══════╝ ╚═════╝  ╚═════╝
                      G U A R D I A N
 """
+
 print(BANNER)
 
 **Multi-Channel Placement Workflow & Scheduling Orchestration Core**
