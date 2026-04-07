@@ -2,10 +2,10 @@ services:
   - type: web
     name: haveloc-guardian
     env: python
+    pythonVersion: "3.11"
     region: singapore
     plan: free
-    pythonVersion: "3.11"
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --no-cache-dir -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
