@@ -167,6 +167,15 @@ class TelegramNotifier:
             logger.warning("Telegram not configured, skipping.")
             return False
 
+        # Escape special Markdown characters to avoid parse errors
+        import re
+        def escape_markdown(text):
+            # Escape special characters: _ * [ ] ( ) ~ ` > # + - = | { } . !
+            return re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
+        
+        # Clean and escape message
+        message = escape_markdown(str(message))
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{TELEGRAM_API}/sendMessage",
@@ -195,9 +204,8 @@ class TelegramNotifier:
 
     async def send_emergency_alert(self, email_data: dict, event: dict):
         msg = _build_emergency_message(email_data, event)
-        # Send 3 times for emergency
-        for _ in range(3):
-            await self.send(msg)
+        # Send only once to avoid errors
+        await self.send(msg)
 
     async def send_reminder(self, company: str, event_type: str, minutes_left: int, time_str: str):
         msg = _build_reminder_message(company, event_type, minutes_left, time_str)
