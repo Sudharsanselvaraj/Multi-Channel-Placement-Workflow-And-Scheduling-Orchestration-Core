@@ -2,7 +2,6 @@ services:
   - type: web
     name: haveloc-guardian
     env: python
-    pythonVersion: "3.11"
     region: singapore
     plan: free
     buildCommand: pip install --no-cache-dir -r requirements.txt
@@ -41,3 +40,5 @@ services:
         value: INFO
       - key: ENVIRONMENT
         value: production
+      - key: PYTHON_VERSION
+        value: "3.11"
