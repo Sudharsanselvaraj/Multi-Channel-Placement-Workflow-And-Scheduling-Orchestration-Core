@@ -48,5 +48,6 @@ services:
         value: credentials.json
         # Note: Upload credentials.json manually in Render dashboard > Files section
       - key: GOOGLE_SERVICE_ACCOUNT_JSON
-        value: ""
-        # Optional: Use service account JSON for production (recommended)
+        sync: false
+        # IMPORTANT: Set this in Render Dashboard > Environment Variables
+        # Get your service account JSON from Google Cloud Console
