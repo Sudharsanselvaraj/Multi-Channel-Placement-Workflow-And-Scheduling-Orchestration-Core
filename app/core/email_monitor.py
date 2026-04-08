@@ -10,6 +10,7 @@ from email.message import Message
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from bs4 import BeautifulSoup
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.utils.logger import logger
@@ -18,7 +19,29 @@ from config.settings import settings
 
 PROCESSED_IDS_FILE = Path("logs/processed_ids.json")
 
-# ── Keyword scoring ───────────────────────────────────────────────────────────
+
+def clean_html_body(html: str) -> str:
+    """Clean HTML and extract readable text."""
+    if not html or not html.strip():
+        return ""
+    
+    try:
+        soup = BeautifulSoup(html, "lxml")
+        
+        for tag in soup(["script", "style", "head", "meta", "link"]):
+            tag.decompose()
+        
+        text = soup.get_text(separator=" ")
+        
+        text = re.sub(r'\s+', ' ', text)
+        
+        text = text.strip()
+        
+        return text
+    except Exception:
+        re.sub(r"<[^>]+>", " ", html)
+        return re.sub(r'\s+', ' ', html).strip()
+
 
 HIGH_PRIORITY_KEYWORDS = [
     "shortlist", "selected", "test", "interview", "assessment",
@@ -155,19 +178,37 @@ class EmailMonitor:
             for part in msg.walk():
                 if part.get_content_type() == "text/plain":
                     try:
-                        body += part.get_payload(decode=True).decode("utf-8", errors="replace")
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            body += payload.decode("utf-8", errors="replace")
                     except Exception:
                         pass
                 elif part.get_content_type() == "text/html" and not body:
                     try:
-                        raw = part.get_payload(decode=True).decode("utf-8", errors="replace")
-                        # Strip HTML tags
-                        body += re.sub(r"<[^>]+>", " ", raw)
+                        raw = part.get_payload(decode=True)
+                        if raw:
+                            if isinstance(raw, str):
+                                body += clean_html_body(raw)
+                            else:
+                                body += clean_html_body(raw.decode("utf-8", errors="replace"))
                     except Exception:
                         pass
         else:
             try:
-                body = msg.get_payload(decode=True).decode("utf-8", errors="replace")
+                payload = msg.get_payload(decode=True)
+                if payload:
+                    if isinstance(payload, str):
+                        content_type = msg.get_content_type()
+                        if "html" in content_type:
+                            body = clean_html_body(payload)
+                        else:
+                            body = payload
+                    else:
+                        raw_body = payload.decode("utf-8", errors="replace")
+                        if "html" in msg.get_content_type():
+                            body = clean_html_body(raw_body)
+                        else:
+                            body = raw_body
             except Exception:
                 pass
         return body.strip()

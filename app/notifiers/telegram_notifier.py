@@ -21,6 +21,12 @@ def _priority_emoji(priority: str) -> str:
     }.get(priority, "📬")
 
 
+def _truncate(text: str, length: int = 80) -> str:
+    if len(text) <= length:
+        return text
+    return text[:length].rsplit(' ', 1)[0] + "..."
+
+
 def _build_shortlist_message(email_data: dict, event: dict, attachment_result: dict) -> str:
     emoji = _priority_emoji(email_data["priority"])
     confidence_bar = "🟢" if attachment_result["confidence"] >= 0.9 else "🟡"
@@ -29,38 +35,45 @@ def _build_shortlist_message(email_data: dict, event: dict, attachment_result: d
     event_type = event.get('event_type', 'Placement Event')
     date = event.get('date') or "TBD"
     time = event.get('time') or "TBD"
-    subject = email_data['subject']
+    subject = _truncate(email_data['subject'], 60)
 
-    msg = f"""
-{emoji} SHORTLISTED — PLACEMENT ALERT {emoji}
-
-Company: {company}
-Event: {event_type}
-Date: {date}
-Time: {time}
-Duration: {f"{event.get('duration_mins')} minutes" if event.get('duration_mins') else 'TBD'}
-Ends at: {event.get('end_time', 'TBD')}
-Platform: {event.get('platform', 'TBD')}
-
-{confidence_bar} Identity Match: {attachment_result['matched_identity']}
-Found in: {attachment_result['filename']}
-Confidence: {attachment_result['confidence']:.0%}
-
-Subject: {subject}
-Priority Score: {email_data['priority_score']} ({email_data['priority']})
-"""
+    lines = [
+        f"{emoji} <b>SHORTLISTED — PLACEMENT ALERT</b> {emoji}",
+        "",
+        f"<b>🏢 Company:</b> {company}",
+        f"<b>📋 Event:</b> {event_type}",
+    ]
+    
+    if date != "TBD":
+        lines.append(f"<b>📅 Date:</b> {date}")
+    if time != "TBD":
+        lines.append(f"<b>⏰ Time:</b> {time}")
+    
+    duration = event.get('duration_mins')
+    if duration:
+        lines.append(f"<b>⏱ Duration:</b> {duration} minutes")
+    
+    platform = event.get('platform')
+    if platform:
+        lines.append(f"<b>🖥 Platform:</b> {platform}")
+    
+    lines.extend([
+        "",
+        f"{confidence_bar} <b>Identity Match:</b> {attachment_result['matched_identity']}",
+        f"<b>📎 Found in:</b> {attachment_result['filename']}",
+        f"<b>🎯 Confidence:</b> {attachment_result['confidence']:.0%}",
+        "",
+        f"<b>📧 Subject:</b> {subject}",
+        f"<b>🔢 Priority:</b> {email_data['priority_score']} ({email_data['priority']})",
+    ])
 
     if event.get("meeting_link"):
-        msg += f"\nLink: {event['meeting_link']}"
+        lines.append(f"<b>🔗 Link:</b> {event['meeting_link']}")
 
-    if event.get("instructions"):
-        instructions_short = event["instructions"][:150]
-        msg += f"\nInstructions: {instructions_short}..."
+    lines.append(f"\n<i>Detected at {datetime.now().strftime('%I:%M %p, %d %b %Y')}</i>")
+    lines.append("<i>Reminders: 60min, 30min, 10min before</i>")
 
-    msg += f"\n\nDetected at {datetime.now().strftime('%I:%M %p, %d %b %Y')}"
-    msg += "\n\nReminders scheduled: 60min, 30min, 10min before"
-
-    return msg.strip()
+    return "\n".join(lines)
 
 
 def _build_general_alert_message(email_data: dict, event: dict) -> str:
@@ -72,48 +85,47 @@ def _build_general_alert_message(email_data: dict, event: dict) -> str:
     event_type = event.get('event_type', 'Placement Event')
     date = event.get('date') or "TBD"
     time = event.get('time') or "TBD"
-    subject = email_data['subject']
-    body = email_data.get('body', '')
+    subject = _truncate(email_data['subject'])
     
-    date_line = f"Date: {date}\n" if date != "TBD" else ""
-    time_line = f"Time: {time}\n" if time != "TBD" else ""
+    lines = [
+        f"{emoji} <b>{priority} PLACEMENT ALERT</b>",
+        "",
+        f"<b>🏢 Company:</b> {company}",
+        f"<b>📋 Event:</b> {event_type}",
+    ]
     
-    msg = f"""
-{emoji} {priority} PLACEMENT ALERT
-
-Company: {company}
-Event: {event_type}
-{date_line}{time_line}
-Subject: {subject[:80]}{'...' if len(subject) > 80 else ''}
-
-Matched Keywords: {keywords}
-"""
+    if date != "TBD":
+        lines.append(f"<b>📅 Date:</b> {date}")
+    if time != "TBD":
+        lines.append(f"<b>⏰ Time:</b> {time}")
     
-    if body:
-        body_preview = body[:100].replace('\n', ' ').strip()
-        msg += f"\nPreview: {body_preview}..."
+    lines.append(f"<b>📧 Subject:</b> {subject}")
+    lines.append(f"<b>🔑 Keywords:</b> {keywords}")
+    lines.append(f"\n<i>Detected at {datetime.now().strftime('%I:%M %p, %d %b %Y')}</i>")
 
-    msg += f"\n\nDetected at {datetime.now().strftime('%I:%M %p, %d %b %Y')}"
-
-    return msg.strip()
+    return "\n".join(lines)
 
 
 def _build_reminder_message(company: str, event_type: str, minutes_left: int, time_str: str) -> str:
     urgency = "🔴" if minutes_left <= 10 else "🟡" if minutes_left <= 30 else "🟢"
-    action = "⚡ GET READY NOW!" if minutes_left <= 10 else "📝 Prepare your system and be ready."
+    action = "<b>⚡ GET READY NOW!</b>" if minutes_left <= 10 else "<b>📝 Prepare your system and be ready.</b>"
     prep = "✅ Charge laptop | ✅ Check internet | ✅ Open test link" if minutes_left <= 30 else ""
     
-    return f"""
-{urgency} REMINDER — {minutes_left} MINUTES LEFT
-
-Company: {company}
-Event: {event_type}
-
-Time: Starts at {time_str}
-
-{action}
-{prep}
-""".strip()
+    lines = [
+        f"{urgency} <b>REMINDER — {minutes_left} MINUTES LEFT</b>",
+        "",
+        f"<b>🏢 Company:</b> {company}",
+        f"<b>📋 Event:</b> {event_type}",
+        "",
+        f"<b>⏰ Starts at:</b> {time_str}",
+        "",
+        action,
+    ]
+    
+    if prep:
+        lines.append(prep)
+    
+    return "\n".join(lines)
 
 
 def _build_emergency_message(email_data: dict, event: dict) -> str:
@@ -121,72 +133,73 @@ def _build_emergency_message(email_data: dict, event: dict) -> str:
     event_type = event.get('event_type', 'Placement Event')
     date = event.get('date') or "TBD"
     time = event.get('time') or "TBD"
-    body = email_data.get('body', '')
     subject = email_data['subject']
     keywords = ', '.join(email_data.get('matched_keywords', [])[:5])
     
-    date_line = f"Date: {date}\n" if date != "TBD" else ""
-    time_line = f"Time: {time}\n" if time != "TBD" else ""
+    lines = [
+        "🚨 <b>URGENT PLACEMENT ALERT</b> 🚨",
+        "",
+        f"<b>🏢 Company:</b> {company}",
+        f"<b>📋 Event:</b> {event_type}",
+    ]
     
-    msg = f"""
-🚨 URGENT PLACEMENT ALERT 🚨
-
-Company: {company}
-Event: {event_type}
-{date_line}{time_line}
-Subject: {subject}
-
-Keywords: {keywords}
-"""
+    if date != "TBD":
+        lines.append(f"<b>📅 Date:</b> {date}")
+    if time != "TBD":
+        lines.append(f"<b>⏰ Time:</b> {time}")
     
-    if body:
-        body_preview = body[:150].replace('\n', ' ').strip()
-        msg += f"\nPreview: {body_preview}..."
+    lines.extend([
+        f"<b>📧 Subject:</b> {subject}",
+        f"<b>🔑 Keywords:</b> {keywords}",
+        "",
+        "<b>⚡ ACTION REQUIRED:</b> Please check your email and attend immediately.",
+    ])
     
-    msg += "\n\n⚡ ACTION REQUIRED: Please check your email and attend immediately."
-    
-    return msg.strip()
+    return "\n".join(lines)
 
 
 def _build_daily_summary_message(events_today: list, upcoming: list) -> str:
-    msg = f"""
-📊 DAILY PLACEMENT SUMMARY
-{datetime.now().strftime('%A, %d %B %Y')}
-
-"""
+    lines = [
+        "📊 <b>DAILY PLACEMENT SUMMARY</b>",
+        f"_{datetime.now().strftime('%A, %d %B %Y')}_",
+        "",
+    ]
+    
     if events_today:
-        msg += f"Today's Events ({len(events_today)}):\n"
+        lines.append(f"<b>📅 Today's Events ({len(events_today)}):</b>")
         for ev in events_today:
-            msg += f"  • {ev.get('company')} — {ev.get('event_type')} at {ev.get('time')}\n"
+            time = ev.get('time', 'TBD')
+            lines.append(f"  • {ev.get('company')} — {ev.get('event_type')} at {time}")
     else:
-        msg += "✅ No placement events today.\n"
-
+        lines.append("✅ No placement events today.")
+    
     if upcoming:
-        msg += f"\nUpcoming ({len(upcoming)}):\n"
+        lines.append(f"\n<b>⏭ Upcoming ({len(upcoming)}):</b>")
         for ev in upcoming[:5]:
-            msg += f"  • {ev.get('company')} — {ev.get('date')}\n"
-
-    msg += "\nHaveloc Guardian is running 24/7"
-    return msg.strip()
+            date = ev.get('date', 'TBD')
+            lines.append(f"  • {ev.get('company')} — {date}")
+    
+    lines.append("\n<i>Haveloc Guardian is running 24/7</i> 🛡")
+    return "\n".join(lines)
 
 
 class TelegramNotifier:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
-    async def send(self, message: str, parse_mode: str = "Markdown") -> bool:
+    async def send(self, message: str, parse_mode: str = "HTML") -> bool:
         if not settings.telegram_bot_token or not settings.telegram_chat_id:
             logger.warning("Telegram not configured, skipping.")
             return False
 
+        payload = {
+            "chat_id": settings.telegram_chat_id,
+            "text": message,
+            "disable_web_page_preview": True,
+        }
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+
         async with httpx.AsyncClient() as client:
-            payload = {
-                "chat_id": settings.telegram_chat_id,
-                "text": message,
-                "disable_web_page_preview": False,
-            }
-            if parse_mode:
-                payload["parse_mode"] = parse_mode
-            
             response = await client.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json=payload,
@@ -221,13 +234,13 @@ class TelegramNotifier:
 
     async def send_system_status(self, status: dict):
         msg = f"""
-🛡 GUARDIAN SYSTEM STATUS
+🛡 <b>GUARDIAN SYSTEM STATUS</b>
 
-🟢 Status: Running
-📬 Emails Processed: {status.get('total_processed', 0)}
-🎯 Shortlists Found: {status.get('shortlists_found', 0)}
-📅 Events Tracked: {status.get('events_tracked', 0)}
-⏱ Uptime: {status.get('uptime', 'N/A')}
-🕐 Last Check: {status.get('last_check', 'N/A')}
+🟢 <b>Status:</b> Running
+📬 <b>Emails Processed:</b> {status.get('total_processed', 0)}
+🎯 <b>Shortlists Found:</b> {status.get('shortlists_found', 0)}
+📅 <b>Events Tracked:</b> {status.get('events_tracked', 0)}
+⏱ <b>Uptime:</b> {status.get('uptime', 'N/A')}
+🕐 <b>Last Check:</b> {status.get('last_check', 'N/A')}
 """.strip()
         await self.send(msg)
