@@ -42,3 +42,8 @@ services:
         value: production
       - key: PYTHON_VERSION
         value: "3.11"
+      - key: GOOGLE_CALENDAR_ID
+        value: primary
+      - key: GOOGLE_CREDENTIALS_JSON
+        value: credentials.json
+        # Note: Upload credentials.json manually in Render dashboard > Files section
