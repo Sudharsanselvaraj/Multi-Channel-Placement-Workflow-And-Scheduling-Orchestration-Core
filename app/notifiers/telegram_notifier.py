@@ -25,36 +25,42 @@ def _build_shortlist_message(email_data: dict, event: dict, attachment_result: d
     emoji = _priority_emoji(email_data["priority"])
     confidence_bar = "🟢" if attachment_result["confidence"] >= 0.9 else "🟡"
 
+    company = event.get('company', 'Unknown')
+    event_type = event.get('event_type', 'Placement Event')
+    date = event.get('date') or "TBD"
+    time = event.get('time') or "TBD"
+    subject = email_data['subject']
+
     msg = f"""
-{emoji} *SHORTLISTED — PLACEMENT ALERT* {emoji}
+{emoji} SHORTLISTED — PLACEMENT ALERT {emoji}
 
-🏢 *Company:* {event.get('company', 'Unknown')}
-📋 *Event:* {event.get('event_type', 'Placement Event')}
-📅 *Date:* {event.get('date', 'TBD')}
-⏰ *Time:* {event.get('time', 'TBD')}
-⏱ *Duration:* {f"{event.get('duration_mins')} minutes" if event.get('duration_mins') else 'TBD'}
-🕐 *Ends at:* {event.get('end_time', 'TBD')}
-🖥 *Platform:* {event.get('platform', 'TBD')}
+Company: {company}
+Event: {event_type}
+Date: {date}
+Time: {time}
+Duration: {f"{event.get('duration_mins')} minutes" if event.get('duration_mins') else 'TBD'}
+Ends at: {event.get('end_time', 'TBD')}
+Platform: {event.get('platform', 'TBD')}
 
-{confidence_bar} *Identity Match:* {attachment_result['matched_identity']}
-📎 *Found in:* {attachment_result['filename']}
-🎯 *Confidence:* {attachment_result['confidence']:.0%}
+{confidence_bar} Identity Match: {attachment_result['matched_identity']}
+Found in: {attachment_result['filename']}
+Confidence: {attachment_result['confidence']:.0%}
 
-📧 *Subject:* {email_data['subject']}
-🔢 *Priority Score:* {email_data['priority_score']} ({email_data['priority']})
-""".strip()
+Subject: {subject}
+Priority Score: {email_data['priority_score']} ({email_data['priority']})
+"""
 
     if event.get("meeting_link"):
-        msg += f"\n\n🔗 *Link:* {event['meeting_link']}"
+        msg += f"\nLink: {event['meeting_link']}"
 
     if event.get("instructions"):
         instructions_short = event["instructions"][:150]
-        msg += f"\n\n📝 *Instructions:* {instructions_short}..."
+        msg += f"\nInstructions: {instructions_short}..."
 
-    msg += f"\n\n⏱ _Detected at {datetime.now().strftime('%I:%M %p, %d %b %Y')}_"
-    msg += "\n\n🔔 *Reminders scheduled: 60min, 30min, 10min before*"
+    msg += f"\n\nDetected at {datetime.now().strftime('%I:%M %p, %d %b %Y')}"
+    msg += "\n\nReminders scheduled: 60min, 30min, 10min before"
 
-    return msg
+    return msg.strip()
 
 
 def _build_general_alert_message(email_data: dict, event: dict) -> str:
@@ -64,117 +70,113 @@ def _build_general_alert_message(email_data: dict, event: dict) -> str:
     
     company = event.get('company', 'Unknown')
     event_type = event.get('event_type', 'Placement Event')
-    date = event.get('date', 'TBD')
-    time = event.get('time', 'TBD')
+    date = event.get('date') or "TBD"
+    time = event.get('time') or "TBD"
     subject = email_data['subject']
     body = email_data.get('body', '')
     
+    date_line = f"Date: {date}\n" if date != "TBD" else ""
+    time_line = f"Time: {time}\n" if time != "TBD" else ""
+    
     msg = f"""
-{emoji} *{priority} PLACEMENT ALERT*
+{emoji} {priority} PLACEMENT ALERT
 
-🏢 *Company:* {company}
-📋 *Event:* {event_type}
-📅 *Date:* {date}
-⏰ *Time:* {time}
+Company: {company}
+Event: {event_type}
+{date_line}{time_line}
+Subject: {subject[:80]}{'...' if len(subject) > 80 else ''}
 
-📧 *Subject:* {subject[:80]}{'...' if len(subject) > 80 else ''}
-
-🔑 *Matched:* {keywords}
+Matched Keywords: {keywords}
 """
     
     if body:
         body_preview = body[:100].replace('\n', ' ').strip()
-        msg += f"\n📝 {body_preview}..."
+        msg += f"\nPreview: {body_preview}..."
 
-    msg += f"\n\n_Detected at {datetime.now().strftime('%I:%M %p, %d %b %Y')}_"
+    msg += f"\n\nDetected at {datetime.now().strftime('%I:%M %p, %d %b %Y')}"
 
-    return msg
+    return msg.strip()
 
 
 def _build_reminder_message(company: str, event_type: str, minutes_left: int, time_str: str) -> str:
     urgency = "🔴" if minutes_left <= 10 else "🟡" if minutes_left <= 30 else "🟢"
+    action = "⚡ GET READY NOW!" if minutes_left <= 10 else "📝 Prepare your system and be ready."
+    prep = "✅ Charge laptop | ✅ Check internet | ✅ Open test link" if minutes_left <= 30 else ""
+    
     return f"""
-{urgency} *REMINDER — {minutes_left} MINUTES LEFT*
+{urgency} REMINDER — {minutes_left} MINUTES LEFT
 
-🏢 *{company}* — {event_type}
-⏰ Starts at *{time_str}*
+Company: {company}
+Event: {event_type}
 
-{"⚡ GET READY NOW!" if minutes_left <= 10 else "📝 Prepare your environment."}
-{"✅ Charge laptop | ✅ Check internet | ✅ Open test link" if minutes_left <= 30 else ""}
+Time: Starts at {time_str}
+
+{action}
+{prep}
 """.strip()
 
 
 def _build_emergency_message(email_data: dict, event: dict) -> str:
     company = event.get('company', 'Unknown')
     event_type = event.get('event_type', 'Placement Event')
-    date = event.get('date', 'TBD')
-    time = event.get('time', 'TBD')
+    date = event.get('date') or "TBD"
+    time = event.get('time') or "TBD"
     body = email_data.get('body', '')
-    
-    # Extract key info from body for more context
+    subject = email_data['subject']
     keywords = ', '.join(email_data.get('matched_keywords', [])[:5])
     
+    date_line = f"Date: {date}\n" if date != "TBD" else ""
+    time_line = f"Time: {time}\n" if time != "TBD" else ""
+    
     msg = f"""
-🚨 *URGENT PLACEMENT ALERT* 🚨
+🚨 URGENT PLACEMENT ALERT 🚨
 
-🏢 *Company:* {company}
-📋 *Event:* {event_type}
-📅 *Date:* {date}
-⏰ *Time:* {time}
+Company: {company}
+Event: {event_type}
+{date_line}{time_line}
+Subject: {subject}
 
-📧 *Subject:* {email_data['subject']}
-
-🔑 *Keywords:* {keywords}
+Keywords: {keywords}
 """
     
     if body:
-        # Add first 100 chars of body for context
         body_preview = body[:150].replace('\n', ' ').strip()
-        msg += f"\n📝 *Preview:* {body_preview}..."
+        msg += f"\nPreview: {body_preview}..."
     
-    msg += "\n\n⚡ ACT IMMEDIATELY — This is urgent!"
+    msg += "\n\n⚡ ACTION REQUIRED: Please check your email and attend immediately."
     
     return msg.strip()
 
 
 def _build_daily_summary_message(events_today: list, upcoming: list) -> str:
     msg = f"""
-📊 *DAILY PLACEMENT SUMMARY*
-_{datetime.now().strftime('%A, %d %B %Y')}_
+📊 DAILY PLACEMENT SUMMARY
+{datetime.now().strftime('%A, %d %B %Y')}
 
 """
     if events_today:
-        msg += f"📅 *Today's Events ({len(events_today)}):*\n"
+        msg += f"Today's Events ({len(events_today)}):\n"
         for ev in events_today:
             msg += f"  • {ev.get('company')} — {ev.get('event_type')} at {ev.get('time')}\n"
     else:
         msg += "✅ No placement events today.\n"
 
     if upcoming:
-        msg += f"\n⏭ *Upcoming ({len(upcoming)}):*\n"
+        msg += f"\nUpcoming ({len(upcoming)}):\n"
         for ev in upcoming[:5]:
             msg += f"  • {ev.get('company')} — {ev.get('date')}\n"
 
-    msg += "\n_Haveloc Guardian is running 24/7_ 🛡"
+    msg += "\nHaveloc Guardian is running 24/7"
     return msg.strip()
 
 
 class TelegramNotifier:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
-    async def send(self, message: str, parse_mode: str = "Markdown") -> bool:
+    async def send(self, message: str, parse_mode: str = None) -> bool:
         if not settings.telegram_bot_token or not settings.telegram_chat_id:
             logger.warning("Telegram not configured, skipping.")
             return False
-
-        # Escape special Markdown characters to avoid parse errors
-        import re
-        def escape_markdown(text):
-            # Escape special characters: _ * [ ] ( ) ~ ` > # + - = | { } . !
-            return re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
-        
-        # Clean and escape message
-        message = escape_markdown(str(message))
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -204,7 +206,6 @@ class TelegramNotifier:
 
     async def send_emergency_alert(self, email_data: dict, event: dict):
         msg = _build_emergency_message(email_data, event)
-        # Send only once to avoid errors
         await self.send(msg)
 
     async def send_reminder(self, company: str, event_type: str, minutes_left: int, time_str: str):
@@ -217,9 +218,9 @@ class TelegramNotifier:
 
     async def send_system_status(self, status: dict):
         msg = f"""
-🛡 *GUARDIAN SYSTEM STATUS*
+🛡 GUARDIAN SYSTEM STATUS
 
-🟢 Status: *Running*
+🟢 Status: Running
 📬 Emails Processed: {status.get('total_processed', 0)}
 🎯 Shortlists Found: {status.get('shortlists_found', 0)}
 📅 Events Tracked: {status.get('events_tracked', 0)}

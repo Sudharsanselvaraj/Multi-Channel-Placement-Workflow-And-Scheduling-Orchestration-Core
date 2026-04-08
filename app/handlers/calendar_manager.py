@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
 import pytz
@@ -10,6 +11,8 @@ from app.utils.logger import logger
 from config.settings import settings
 
 IST = pytz.timezone(settings.timezone)
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class CalendarManager:
@@ -30,17 +33,18 @@ class CalendarManager:
 
             SCOPES = ["https://www.googleapis.com/auth/calendar"]
             creds = None
-            token_path = "logs/token.json"
+            token_path = BASE_DIR / "logs" / "token.json"
 
             if os.path.exists(token_path):
-                creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+                creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
 
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
                     creds.refresh(Request())
                 else:
+                    creds_file = BASE_DIR / settings.google_credentials_json
                     flow = InstalledAppFlow.from_client_secrets_file(
-                        settings.google_credentials_json, SCOPES
+                        str(creds_file), SCOPES
                     )
                     creds = flow.run_local_server(port=0)
 

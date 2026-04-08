@@ -13,17 +13,20 @@ IST = pytz.timezone(settings.timezone)
 # ── Regex Patterns ────────────────────────────────────────────────────────────
 
 DATE_PATTERNS = [
-    r"(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})",           # 07-04-2026
+    r"(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})",           # 07-04-2026, 7/4/2026
     r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})",             # 2026-04-07
     r"(\d{1,2}\s+\w+\s+\d{4})",                   # 7 April 2026
     r"(\w+\s+\d{1,2},?\s+\d{4})",                 # April 7, 2026
     r"(today|tomorrow)",                            # relative dates
+    r"(\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{4})",  # 7th April 2026
+    r"(\d{1,2}[/-]\d{1,2}[/-]\d{4})",              # 07/04/2026
 ]
 
 TIME_PATTERNS = [
     r"(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))",         # 2:00 PM
     r"(\d{1,2}\s*(?:AM|PM|am|pm))",               # 2 PM
     r"(\d{1,2}:\d{2})",                            # 14:00
+    r"(\d{1,2}\s*:\s*\d{2}\s*(?:AM|PM|am|pm)?)",  # flexible time
 ]
 
 DURATION_PATTERNS = [
@@ -52,6 +55,7 @@ EVENT_TYPE_MAP = {
     "aptitude test": "Aptitude Test",
     "technical test": "Technical Test",
     "written test": "Written Test",
+    "test": "Assessment",
     "interview": "Interview",
     "hr interview": "HR Interview",
     "technical interview": "Technical Interview",
@@ -60,6 +64,15 @@ EVENT_TYPE_MAP = {
     "group discussion": "Group Discussion",
     "ppt": "Pre-Placement Talk",
     "pre-placement": "Pre-Placement Talk",
+    "webinar": "Webinar",
+    "mentor": "Mentor Session",
+    "talk": "Expert Talk",
+    "session": "Session",
+    "hackathon": "Hackathon",
+    "hackwithinfy": "Hackathon",
+    "sparkle": "Competition",
+    "brand quest": "Competition",
+    "techgium": "Competition",
 }
 
 
@@ -104,32 +117,23 @@ class EventExtractor:
         return event
 
     def _extract_company(self, text: str) -> str:
-        # First: look for company names in subject line (usually at start or after keywords)
-        subject_lines = text.split("\n")[:5]
+        subject = text.split("\n")[0]
         
-        # Common patterns in Haveloc emails
         company_patterns = [
-            # "REMINDER: COMPANY NAME" or "COMPANY NAME - something"
-            r"(?:REMINDER|NEW|INVITE|URGENT|REGISTRATION|INFO)\s*[:\-]?\s*([A-Z][A-Za-z]+(?:\s+[A-Za-z]+)?)",
-            # "COMPANY EVENT" - like "INFOSYS HACKWITHINFY"
-            r"^([A-Z][A-Za-z]{3,20})\s+(?:Hackathon|HackWithInfy|Buildathon|Test|Quiz|Exam|Webinar|Session|Talk|Challenge|Innovation|InnoVent|Sparkle|Srijan|Eureka|Techathon|Quest|Quiz)",
-            # "Company - Job" pattern
-            r"^([A-Z][A-Za-z\s&\.]{2,35})\s*[-|]\s*",
-            # "Job at Company" 
-            r"(?:Intern|Job|Position|Role|Engineer|Developer)\s+(?:at|at\s+)([A-Z][A-Za-z\s&\.]{2,40})",
-            # Full company names with common suffixes
-            r"([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?)\s+(?:Technologies|Services|India|Private|Ltd|LLC|Inc|Corporation|Group|Enterprises|Solutions|Hub)",
+            r"^([A-Z][A-Za-z]+(?:\s+[A-Za-z]+)?)\s*[-–—]\s*.+",  # Company - Event
+            r"^([A-Z][A-Za-z]+)\s+(?:Springboard|Virtual|Internship|Program|Engineer|Developer)",  # Company + role
+            r"(?:at|by|from)\s+([A-Z][A-Za-z\s&\.]{2,40})\s+(?:Intern|Job|Position|Role|Engineer|Test|Interview|Placement|Event|Webinar|Session)",  # Job at Company
+            r"([A-Z][A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(?:Technologies|Services|India|Private|Ltd|LLC|Inc|Corporation|Group|Enterprises|Solutions|Hub|Quest|Brand)",  # Full names
+            r"(?:REMINDER|INVITE|URGENT|NEW)\s*[:\-]?\s*([A-Z][A-Za-z]+(?:\s+[A-Za-z]+)?)",  # REMINDER: Company
         ]
         
-        for line in subject_lines:
-            for pattern in company_patterns:
-                match = re.search(pattern, line, re.IGNORECASE)
-                if match:
-                    company = match.group(1).strip()
-                    if 2 < len(company) < 50:
-                        return company
-
-        # Try regex patterns on full text
+        for pattern in company_patterns:
+            match = re.search(pattern, subject, re.IGNORECASE)
+            if match:
+                company = match.group(1).strip()
+                if 2 < len(company) < 50:
+                    return company
+        
         for pattern in COMPANY_PATTERNS:
             match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
             if match:
@@ -137,8 +141,7 @@ class EventExtractor:
                 if 2 < len(company) < 50:
                     return company
 
-        # Last resort: check for known company names
-        known_companies = ['INFOSYS', 'TCS', 'WIPRO', 'ACCENTURE', 'CAPGEMINI', 'DELOITTE', 'EY', 'KPMG', 'IBM', 'ORACLE', 'MICROSOFT', 'GOOGLE', 'AMAZON', 'META', 'FLIPKART', 'PAYTM', 'ZOMATO', 'SWIGGY', 'BYJUS', 'UNISYS', 'L&T', 'TATA', 'GP', 'HCL', 'PHILIPS', 'BAYER', 'SCHNEIDER', 'VOLVO', 'MAHINDRA', 'MARUTI', 'HYUNDAI', 'SONY', 'SAMSUNG', 'LG', 'CANON', 'DELL', 'HP', 'LENOVO', 'ASUS', 'ACER', 'INTEL', 'AMD', 'NVIDIA', 'CISCO', 'VMWARE', 'SAP', 'SALESFORCE', 'SERVICENOW', 'ATLASSIAN', 'UBER', 'OLA', 'GROFFERS', 'CRED', 'RAZORPAY', 'AWS', 'AZURE', 'ATHER', 'LEAP', 'JP MORGAN', 'CITI', 'BARCLAYS', 'GARTNER', 'ZS', 'PLAYSIMPLE', 'JACOB', 'RELTIO', 'AMDOCS', 'VISA', 'BOSCH', 'SIEMENS', 'ABB', 'GE', 'DNV', 'KB', 'BNY', 'MELLON', 'FIDELITY', 'VIRTUSA', 'COMCAST', 'COGNIZANT', 'GENPACT', 'JUSPAY', 'GROWW', 'ZERODHA', 'FISERV', 'ADP', 'VMWARE', 'AUTODESK', 'ADOBE', 'CADENCE', 'MENTOR', 'GRAPHICS', 'ANTERO', 'VAL', 'HEX', 'AWL', 'ANAND', 'CRO', 'MAVEN', 'NINJAR', 'CAREER', 'FORCE', 'NEXT', 'GEN', 'NOVO', 'NXT', 'RIVIAN', 'ISRO', 'DRDO', 'NTPC', 'IOCL', 'BPCL', 'HAL']
+        known_companies = ['INFOSYS', 'TCS', 'WIPRO', 'ACCENTURE', 'CAPGEMINI', 'DELOITTE', 'EY', 'KPMG', 'IBM', 'ORACLE', 'MICROSOFT', 'GOOGLE', 'AMAZON', 'META', 'FLIPKART', 'PAYTM', 'ZOMATO', 'SWIGGY', 'BYJUS', 'UNISYS', 'L&T', 'TATA', 'GP', 'HCL', 'PHILIPS', 'BAYER', 'SCHNEIDER', 'VOLVO', 'MAHINDRA', 'MARUTI', 'HYUNDAI', 'SONY', 'SAMSUNG', 'LG', 'CANON', 'DELL', 'HP', 'LENOVO', 'ASUS', 'ACER', 'INTEL', 'AMD', 'NVIDIA', 'CISCO', 'VMWARE', 'SAP', 'SALESFORCE', 'SERVICENOW', 'ATLASSIAN', 'UBER', 'OLA', 'GROFFERS', 'CRED', 'RAZORPAY', 'AWS', 'AZURE', 'ATHER', 'LEAP', 'JP MORGAN', 'CITI', 'BARCLAYS', 'GARTNER', 'ZS', 'PLAYSIMPLE', 'JACOB', 'RELTIO', 'AMDOCS', 'VISA', 'BOSCH', 'SIEMENS', 'ABB', 'GE', 'DNV', 'KB', 'BNY', 'MELLON', 'FIDELITY', 'VIRTUSA', 'COMCAST', 'COGNIZANT', 'GENPACT', 'JUSPAY', 'GROWW', 'ZERODHA', 'FISERV', 'ADP', 'AUTODESK', 'ADOBE', 'CADENCE', 'MENTOR', 'GRAPHICS', 'ANTERO', 'VAL', 'HEX', 'AWL', 'ANAND', 'CRO', 'MAVEN', 'NINJAR', 'CAREER', 'FORCE', 'NEXT', 'GEN', 'NOVO', 'NXT', 'RIVIAN', 'ISRO', 'DRDO', 'NTPC', 'IOCL', 'BPCL', 'HAL', 'KPIT', 'NPCI']
         text_upper = text.upper()
         for comp in known_companies:
             if comp in text_upper:
