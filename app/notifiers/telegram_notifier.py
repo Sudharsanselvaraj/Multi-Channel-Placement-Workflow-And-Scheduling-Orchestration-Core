@@ -173,20 +173,23 @@ def _build_daily_summary_message(events_today: list, upcoming: list) -> str:
 class TelegramNotifier:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
-    async def send(self, message: str, parse_mode: str = None) -> bool:
+    async def send(self, message: str, parse_mode: str = "Markdown") -> bool:
         if not settings.telegram_bot_token or not settings.telegram_chat_id:
             logger.warning("Telegram not configured, skipping.")
             return False
 
         async with httpx.AsyncClient() as client:
+            payload = {
+                "chat_id": settings.telegram_chat_id,
+                "text": message,
+                "disable_web_page_preview": False,
+            }
+            if parse_mode:
+                payload["parse_mode"] = parse_mode
+            
             response = await client.post(
                 f"{TELEGRAM_API}/sendMessage",
-                json={
-                    "chat_id": settings.telegram_chat_id,
-                    "text": message,
-                    "parse_mode": parse_mode,
-                    "disable_web_page_preview": False,
-                },
+                json=payload,
                 timeout=15,
             )
             if response.status_code == 200:
