@@ -21,35 +21,52 @@ class CalendarManager:
         self._service = None
 
     def _get_service(self):
-        """Lazy init Google Calendar service."""
+        """Lazy init Google Calendar service - tries Service Account first, then OAuth."""
         if self._service:
             return self._service
 
         try:
-            from google.oauth2.credentials import Credentials
-            from google.auth.transport.requests import Request
-            from google_auth_oauthlib.flow import InstalledAppFlow
             from googleapiclient.discovery import build
 
             SCOPES = ["https://www.googleapis.com/auth/calendar"]
             creds = None
-            token_path = BASE_DIR / "logs" / "token.json"
 
-            if os.path.exists(token_path):
-                creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
+            service_account_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+            
+            if service_account_json:
+                from google.oauth2.service_account import Credentials
+                creds = Credentials.from_service_account_info(
+                    json.loads(service_account_json), 
+                    scopes=SCOPES
+                )
+                logger.info("🔑 Using Google Service Account credentials")
+            else:
+                from google.oauth2.credentials import Credentials as OAuthCredentials
+                from google.auth.transport.requests import Request
+                from google_auth_oauthlib.flow import InstalledAppFlow
 
-            if not creds or not creds.valid:
-                if creds and creds.expired and creds.refresh_token:
-                    creds.refresh(Request())
-                else:
-                    creds_file = BASE_DIR / settings.google_credentials_json
-                    flow = InstalledAppFlow.from_client_secrets_file(
-                        str(creds_file), SCOPES
-                    )
-                    creds = flow.run_local_server(port=0)
+                token_path = BASE_DIR / "logs" / "token.json"
 
-                with open(token_path, "w") as token:
-                    token.write(creds.to_json())
+                if os.path.exists(token_path):
+                    creds = OAuthCredentials.from_authorized_user_file(str(token_path), SCOPES)
+
+                if not creds or not creds.valid:
+                    if creds and creds.expired and creds.refresh_token:
+                        creds.refresh(Request())
+                    else:
+                        creds_file = BASE_DIR / settings.google_credentials_json
+                        if os.path.exists(creds_file):
+                            flow = InstalledAppFlow.from_client_secrets_file(
+                                str(creds_file), SCOPES
+                            )
+                            creds = flow.run_local_server(port=0)
+
+                            os.makedirs(BASE_DIR / "logs", exist_ok=True)
+                            with open(token_path, "w") as token:
+                                token.write(creds.to_json())
+                        else:
+                            logger.warning("No credentials.json found and no service account configured")
+                            return None
 
             self._service = build("calendar", "v3", credentials=creds)
             logger.info("✅ Google Calendar connected")

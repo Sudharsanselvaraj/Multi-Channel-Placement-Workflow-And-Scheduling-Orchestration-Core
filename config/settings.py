@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     # Google Calendar
     google_calendar_id: str = "primary"
     google_credentials_json: str = "credentials.json"
+    google_service_account_json: str = ""
 
     # Pushover
     pushover_user_key: str = ""
